@@ -7,15 +7,13 @@ describe("App (API) Request Tests", () => {
 
 
   /// 1 ///
+  test("GET /", async () => {
 
-    /// 2 ///
-    test("GET /", async () => {
+    const res = await request(app).get("/") 
 
-      const res = await request(app).get("/") 
-  
-      expect(res.status).toBe(200)
-      expect(res.headers["content-type"]).toMatch(/json/i)
-    })
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/json/i)
+  })
 
 
   /// 2 ///
