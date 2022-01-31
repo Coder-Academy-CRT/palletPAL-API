@@ -16,7 +16,7 @@ const app = express()
 app.use(cors())           // cors middleware to assist around the CORS issue during development
 app.use(express.json())   // this allows the req.body to access as json object
 
-// SEEDS QUERY #################################################################
+
 
 app.get('/', (request, response) => {
   response.send( { myResponse : "Confirmation that .get request was processed " })
@@ -155,5 +155,90 @@ app.get('/warehouse/:warehouse_id/products', (req, res) => {
     }
   })
 })
+
+
+
+// DELETE PALLETS & PRODUCTS
+
+app.delete('/pallet/:pallet_id', (req, res) => {
+
+  const pallet_id = req.params.pallet_id
+
+  let query_string = 
+  `DELETE FROM pallet
+    WHERE id = $1`
+
+  pool.query(query_string, [pallet_id], (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send(`pallet ${pallet_id} deleted`)
+      }
+  })
+})
+
+
+app.delete('/product/:product_id', (req, res) => {
+
+  const pallet_id = req.params.pallet_id
+
+  let query_string = 
+  `DELETE FROM product
+    WHERE id = $1;
+
+    DELETE FROM pallet
+      WHERE id IN (
+        SELECT pallet.id AS empty_pallet_id FROM product
+          RIGHT JOIN pallet ON pallet.id = product.pallet_id
+            WHERE product.pallet_id IS NULL )
+  `
+  // optional additional SQL will search for any empty pallets (should generally just be a single one) and delete the pallet
+  
+
+  pool.query(query_string, [pallet_id], (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send(`product ${product_id} deleted`)
+      }
+  })
+})
+
+
+// UPDATE PRODUCT 
+
+app.put('/product/:product_id', (req, res) => {
+
+  const product_id = req.params.product_id
+
+  let query_string = 
+  `UPDATE product
+    SET number_of_bags = $1
+      WHERE id = $2;
+      
+  DELETE FROM product
+    WHERE number_of_bags = 0;
+
+  DELETE FROM pallet
+    WHERE id IN (
+      SELECT pallet.id AS empty_pallet_id FROM product
+        RIGHT JOIN pallet ON pallet.id = product.pallet_id
+          WHERE product.pallet_id IS NULL )
+  `
+
+  pool.query(query_string, [req.body.number_of_bags, pallet_id], (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send(`product ${product_id} updated`)
+      }
+  })
+
+
+
+})
+
+
+
 
 module.exports = app
