@@ -27,6 +27,7 @@ describe("App (API) Request Tests", () => {
 
   })
 
+
   /// 3 ///
   test("GET /warehouse/1/lots", async () => {
 
@@ -38,26 +39,28 @@ describe("App (API) Request Tests", () => {
 
   })
 
-    /// 4 ///
-    test("GET /warehouse/1/locations", async () => {
-
-      const res = await request(app).get("/warehouse/1/locations")
   
-      expect(res.status).toBe(200)
-      expect(res.headers["content-type"]).toMatch(/json/i)
-      expect(res.body.length).toBe(16)
-  
-    })
+  /// 4 ///
+  test("GET /warehouse/1/locations", async () => {
 
-      /// 5 ///
-      test("GET /warehouse/1/locations", async () => {
+    const res = await request(app).get("/warehouse/1/locations")
 
-        const res = await request(app).get("/warehouse/1/products")
-    
-        expect(res.status).toBe(200)
-        expect(res.headers["content-type"]).toMatch(/json/i)
-    
-      })
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/json/i)
+    expect(res.body.length).toBe(16)
+
+  })
+
+
+  /// 5 ///
+  test("GET /warehouse/1/locations", async () => {
+
+    const res = await request(app).get("/warehouse/1/products")
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/json/i)
+
+  })
 
 
 })
