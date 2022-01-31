@@ -19,7 +19,7 @@ app.use(express.json())   // this allows the req.body to access as json object
 // SEEDS QUERY #################################################################
 
 app.get('/', (request, response) => {
-  response.send( { myResponse : "Confirmation that .get request was processed " })
+  response.send( { myResponse : "Confirmation that .get request was processed" })
 })
 
 app.get('/seeds', (req, res) => {
