@@ -1,0 +1,27 @@
+{
+  "name": "palletPAL-API",
+  "version": "1.0.0",
+  "description": "PalletPAL",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "npx nodemon"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Coder-Academy-CRT/palletPAL-API.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Coder-Academy-CRT/palletPAL-API/issues"
+  },
+  "homepage": "https://github.com/Coder-Academy-CRT/palletPAL-API#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^15.0.0",
+    "express": "^4.17.2",
+    "pg": "^8.7.1"
+  }
+}
