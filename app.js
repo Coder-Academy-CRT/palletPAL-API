@@ -17,6 +17,7 @@ app.use(cors())           // cors middleware to assist around the CORS issue dur
 app.use(express.json())   // this allows the req.body to access as json object
 
 
+
 ///////////////////////////////// READ SEEDS, LOT, PALLET, PRODUCT ///////////////////////////////////////////
 
 // CONFIRMATION 
