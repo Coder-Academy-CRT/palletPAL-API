@@ -125,6 +125,25 @@ describe("App .post Request Tests", () => {
     expect(res.text).toBe(`lot code ${lot_code} added to warehouse database`)
   })
 
+
+  /// 4 /// NEW PRODUCT (includes new pallet)
+  test("POST /location/:location_coords/products'", async () => {
+
+    let location_coords = '03_03'
+   
+    const res = await request(app)
+    .post (`/location/${location_coords}/products`) 
+    .send ({         
+      lot_code : "AUSN121003",
+      bag_size : 99,
+      number_of_bags : 10.5
+    }) 
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/text/i)
+    expect(res.text).toBe("new product successfully added")
+  })
+
 })
 
 

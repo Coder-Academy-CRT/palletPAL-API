@@ -418,7 +418,7 @@ app.post('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 })
 
 
-// CREATE PRODUCT 
+// ADD PRODUCT TO EXISTING PALLET
 
 app.post('/pallet/:pallet_id/products', (req, res) => {
 
@@ -432,7 +432,7 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
       FROM lot
         WHERE lot_code = $2),
     $3,
-    $4) 
+    $4);
   `
 
   pool.query(query_string, [
@@ -442,13 +442,89 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
     req.body.number_of_bags
     ], (error, _) => {
       if (error) {
-        if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"')) {
-          res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet.")
-        } else {
-          res.status(422).send({ error: error.message }) }
+          res.status(422).send({ error: error.message })
       } else {
           res.send(`new product successfully added`)
       }
+  })
+})
+
+
+// CREATE NEW PRODUCT (NEW PALLET CREATED AT SAME TIME)
+
+app.post('/location/:location_coords/products', (req, res) => {
+
+  const location_coords = req.params.location_coords
+
+  let create_pallet = 
+  `INSERT INTO pallet (location_id)
+    VALUES (
+      (SELECT id FROM location
+        WHERE coord = $1)
+    );`
+
+    let empty_pallets_string = 
+  `
+  DELETE FROM product
+    WHERE number_of_bags = 0;
+
+  DELETE FROM pallet
+    WHERE id IN (
+      SELECT pallet.id AS empty_pallet_id FROM product
+        RIGHT JOIN pallet ON pallet.id = product.pallet_id
+          WHERE product.pallet_id IS NULL )
+  `
+
+  let query_string = 
+  `INSERT INTO product (pallet_id, lot_id, bag_size, number_of_bags)
+  VALUES 
+    (
+      (
+        SELECT id FROM pallet
+          WHERE id IN (
+            SELECT pallet.id AS empty_pallet_id FROM product
+              RIGHT JOIN pallet ON pallet.id = product.pallet_id
+                WHERE product.pallet_id IS NULL )
+      ),
+      (
+        SELECT id
+          FROM lot
+            WHERE lot_code = $1
+      ),
+    $2,
+    $3) 
+  `
+
+  pool.query(create_pallet, [location_coords], (error, _) => {
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+
+      pool.query(query_string, [
+        req.body.lot_code, 
+        req.body.bag_size,
+        req.body.number_of_bags
+        ], (error, _) => {
+          if (error) {
+
+            // if there is an error with creating the product, then delete the empty pallet 
+            pool.query(query_string, (error, _) => {
+              if (error) {
+                  res.status(422).send({ error: error.message })
+              } else {
+                  res.send('empty pallets deleted')
+              }
+            })
+
+            if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"')) {
+              res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet.")
+            } else {
+              res.status(422).send({ error: error.message }) }
+          } else {
+              res.send(`new product successfully added`)
+          }
+        })
+     }
   })
 })
 
