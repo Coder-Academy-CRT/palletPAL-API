@@ -223,7 +223,6 @@ app.delete('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 	      	WHERE lot_code = $1
 	      	AND warehouse.id = $2 );
 		
-
     DELETE FROM pallet
       WHERE id IN (
         SELECT pallet.id AS empty_pallet_id FROM product
@@ -293,16 +292,114 @@ app.put('/product/:product_id', (req, res) => {
             AND warehouse.id = $3 );
     `
   
-    pool.query(query_string, [req.lot_code, lot_code, warehouse_id], (error, _) => {
+    pool.query(query_string, [req.body.lot_code, lot_code, warehouse_id], (error, _) => {
         if (error) {
             res.status(422).send({ error: error.message })
         } else {
-            res.send(`lot code ${lot_code} changed to ${req.lot_code}`)
+            res.send(`lot code ${lot_code} changed to ${req.body.lot_code}`)
         }
     })
+})
 
+  // UPDATE LOCATION
+
+  app.put('/locations', (req, res) => {
+
+    let query_string = 
+    `UPDATE product
+      SET location_type = $1
+        WHERE coords IN $2;
+
+    UPDATE product
+      SET location_type = $3
+        WHERE coords IN $4;
+
+    UPDATE product
+      SET location_type = $5
+        WHERE coords IN $6
+    `
+    // consider option for location_type to be an array of relating ids
+    // consider option for coordinates to be an array of arrays, where matching coordinates are assigned
+    // alternative consider single object with types as keys and values as the array of matching coordinates
+
+    pool.query(query_string, [
+        req.body.location_type[0], 
+        req.body.coordinates[0], 
+        req.body.location_type[1], 
+        req.body.coordinates[1], 
+        req.body.location_type[2], 
+        req.body.coordinates[2] 
+      ], (error, _) => {
+        if (error) {
+            res.status(422).send({ error: error.message })
+        } else {
+            res.send(`location types updated`)
+        }
+    })
 })
 
 
+
+////////////////////////////  POST PRODUCT, LOT, WAREHOUSE  ///////////////////////////////////////////
+
+// POST LOT
+
+app.post('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
+
+  const warehouse_id = req.params.warehouse_id
+  const lot_code = req.params.lot_code
+
+  let query_string = 
+  `INSERT INTO lot (warehouse_id, lot_code, seed_id)
+  VALUES 
+    ($1, 
+    $2,
+    (SELECT id
+      FROM seed
+        WHERE type = $3
+        AND variety = $4)
+    );
+  `
+
+  pool.query(query_string, [warehouse_id, lot_code, req.body.seed_type, req.body.seed_variety], (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send(`lot code ${lot_code} added to database`)
+      }
+  })
+})
+
+
+// POST PRODUCT 
+
+app.post('/pallet/:pallet_id/products', (req, res) => {
+
+  const pallet_id = req.params.pallet_id
+
+  let query_string = 
+  `INSERT INTO product (pallet_id, lot_id, bag_size, number_of_bags)
+  VALUES 
+    ($1, 
+    (SELECT id
+      FROM lot
+        WHERE lot_code = $2),
+    $3,
+    $4);
+  `
+
+  pool.query(query_string, [
+    pallet_id, 
+    req.body.lot_code, 
+    req.body.bag_size,
+    req.body.number_of_bags
+    ], (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send(`new product successfully added`)
+      }
+  })
+})
 
 module.exports = app
