@@ -346,11 +346,14 @@ app.post('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
   `
 
   pool.query(query_string, [warehouse_id, lot_code, req.body.seed_type, req.body.seed_variety], (error, _) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
+    if (error) {
+      if (error.message.includes("duplicate key value violates unique constraint")) {
+        res.send("This lot code already exists for this warehouse. Please choose another if you still wish to create a new lot.")
       } else {
-          res.send(`lot code ${lot_code} added to database`)
-      }
+        res.status(422).send({ error: error.message }) }
+    } else {
+        res.send(`lot code ${lot_code} added to warehouse database`)
+    }
   })
 })
 
@@ -369,8 +372,7 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
       FROM lot
         WHERE lot_code = $2),
     $3,
-    $4), 
-    RETURNING *
+    $4) 
   `
 
   pool.query(query_string, [
@@ -379,9 +381,11 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
     req.body.bag_size,
     req.body.number_of_bags
     ], (error, _) => {
-      if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"') ) {
-        res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet. ")
-
+      if (error) {
+        if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"')) {
+          res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet.")
+        } else {
+          res.status(422).send({ error: error.message }) }
       } else {
           res.send(`new product successfully added`)
       }
