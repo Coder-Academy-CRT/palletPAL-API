@@ -17,10 +17,15 @@ app.use(cors())           // cors middleware to assist around the CORS issue dur
 app.use(express.json())   // this allows the req.body to access as json object
 
 
+///////////////////////////////// READ SEEDS, LOT, PALLET, PRODUCT ///////////////////////////////////////////
 
-app.get('/', (request, response) => {
+// CONFIRMATION 
+
+app.get('/', (_, response) => {
   response.send( { myResponse : "Confirmation that .get request was processed " })
 })
+
+// READ SEEDS 
 
 app.get('/seeds', (req, res) => {
 
@@ -40,6 +45,7 @@ app.get('/seeds', (req, res) => {
 })
 
 
+// READ WAREHOUSE LOCATIONS w/ TYPES and [ PALLETS ]
 
 app.get('/warehouse/:warehouse_id/locations', (req, res) => {
   const warehouse_id = req.params.warehouse_id
@@ -67,6 +73,7 @@ app.get('/warehouse/:warehouse_id/locations', (req, res) => {
   })
 })
 
+// READ LOTS BELONGING TO WAREHOUSE
 
 app.get('/warehouse/:warehouse_id/lots', (req, res) => {
   const warehouse_id = req.params.warehouse_id
@@ -93,33 +100,7 @@ app.get('/warehouse/:warehouse_id/lots', (req, res) => {
   })
 })
 
-
-app.get('/warehouse/:warehouse_id/locations', (req, res) => {
-  const warehouse_id = req.params.warehouse_id
-
-  let query_string = 
-  `SELECT coordinates, category, ARRAY_AGG(id) AS pallets_on_location FROM (
-    SELECT
-        coord AS coordinates, category, pallet.id
-          FROM warehouse
-            INNER JOIN location ON location.warehouse_id = warehouse.id
-              INNER JOIN location_type ON location_type_id = location_type.id
-                LEFT JOIN pallet ON pallet.location_id = location.id	        
-        WHERE warehouse.id = $1
-        ) AS location_data 
-    GROUP BY coordinates, category`
-    
-  pool.query( query_string, [warehouse_id], (error, results) => {
-    if (error) {
-      res.status(422).send({ error: error.message })
-    } else if (results.rows.length == 0) {
-        res.status(404).send({ error: 'No entries' })
-    } else {
-        res.send(results.rows)
-    }
-  })
-})
-
+// READ ALL PRODUCTS (additionally includes coordinates that pallet is located, and seed variety/type)
 
 app.get('/warehouse/:warehouse_id/products', (req, res) => {
   const warehouse_id = req.params.warehouse_id
@@ -241,7 +222,6 @@ app.delete('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 })
 
 
-
 ////////////////////////////////////// UPDATE PRODUCT AND LOT ///////////////////////////////////////////
 
 // UPDATE PRODUCT
@@ -252,8 +232,11 @@ app.put('/product/:product_id', (req, res) => {
 
   let query_string = 
   `UPDATE product
-    SET lot_code = $1
-      WHERE id = $2;
+    SET 
+      lot_id = $1,
+      bag_size = $2,
+      number_of_bags = $3
+        WHERE id = $4;
       
   DELETE FROM product
     WHERE number_of_bags = 0;
@@ -265,7 +248,7 @@ app.put('/product/:product_id', (req, res) => {
           WHERE product.pallet_id IS NULL )
   `
 
-  pool.query(query_string, [req.body.number_of_bags, product_id], (error, _) => {
+  pool.query(query_string, [req.body.lot_id, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
@@ -340,9 +323,9 @@ app.put('/product/:product_id', (req, res) => {
 
 
 
-////////////////////////////  POST PRODUCT, LOT, WAREHOUSE  ///////////////////////////////////////////
+////////////////////////////  CREATE PRODUCT, LOT, WAREHOUSE  ///////////////////////////////////////////
 
-// POST LOT
+// CREATE LOT
 
 app.post('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 
@@ -371,7 +354,7 @@ app.post('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 })
 
 
-// POST PRODUCT 
+// CREATE PRODUCT 
 
 app.post('/pallet/:pallet_id/products', (req, res) => {
 
@@ -398,6 +381,26 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
           res.status(422).send({ error: error.message })
       } else {
           res.send(`new product successfully added`)
+      }
+  })
+})
+
+// CREATE WAREHOUSE // testing confirmation required on response value
+
+
+app.post('/warehouse', (req, res) => {
+
+  let query_string = 
+  `INSERT INTO warehouse (name)
+  VALUES ($1)
+    );
+  `
+
+  pool.query(query_string, [req.body.warehouse_name], (error, results) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send(results.rows[0]) //confirm with testing once merged
       }
   })
 })
