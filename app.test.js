@@ -191,6 +191,34 @@ describe("App .delete Request Tests", () => {
     expect(res.headers["content-type"]).toMatch(/text/i)
     expect(res.text).toBe(`lot ${lot_code} deleted`)
   })
-
-
 })
+
+  /////////////////////////////////  PUT REQUESTS //////////////////////////////////////////////
+
+
+
+
+  describe("App .put Request Tests", () => {
+
+
+    /// 1 ///
+    test("PUT /product/:product_id", async () => {
+    
+      let product_id = 18
+      
+      const res = await request(app)
+      
+      .put (`/product/${product_id}`) 
+      .send ({         
+        lot_id : 16,
+        bag_size : 77,
+        number_of_bags: 0
+      }) 
+  
+      expect(res.status).toBe(200)
+      expect(res.headers["content-type"]).toMatch(/text/i)
+      expect(res.text).toBe(`product ${product_id} updated`)
+    })
+
+  
+  })

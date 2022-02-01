@@ -172,13 +172,34 @@ app.delete('/product/:product_id', (req, res) => {
     WHERE id = $1
   `
 
+  let empty_pallets_string = 
+  `
+  DELETE FROM product
+    WHERE number_of_bags = 0;
+
+  DELETE FROM pallet
+    WHERE id IN (
+      SELECT pallet.id AS empty_pallet_id FROM product
+        RIGHT JOIN pallet ON pallet.id = product.pallet_id
+          WHERE product.pallet_id IS NULL )
+  `
+
   pool.query(query_string, [product_id], (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
-          res.send(`product ${product_id} deleted`)
+          pool.query(empty_pallets_string, (error, _) => {
+            if (error) {
+                res.status(422).send({ error: error.message })
+            } else {
+                res.send(`product ${product_id} deleted`)
+            }
+          })
       }
   })
+
+  
+
 })
 
 
@@ -223,13 +244,31 @@ app.delete('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 	      	WHERE lot_code = $1
 	      	AND warehouse.id = $2 );
   `
+
+  let empty_pallets_string = 
+  `
+  DELETE FROM product
+    WHERE number_of_bags = 0;
+
+  DELETE FROM pallet
+    WHERE id IN (
+      SELECT pallet.id AS empty_pallet_id FROM product
+        RIGHT JOIN pallet ON pallet.id = product.pallet_id
+          WHERE product.pallet_id IS NULL )
+  `
   // optional additional SQL will search for any empty pallets (could be multiple here) and delete the pallet/s
   
   pool.query(query_string, [lot_code, warehouse_id], (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
-          res.send(`lot ${lot_code} deleted`)
+        pool.query(query_string, [lot_code, warehouse_id], (error, _) => {
+          if (error) {
+              res.status(422).send({ error: error.message })
+          } else {
+              res.send(`lot ${lot_code} deleted`)
+          }
+        })
       }
   })
 })
@@ -243,14 +282,17 @@ app.put('/product/:product_id', (req, res) => {
 
   const product_id = req.params.product_id
 
-  let batch_string = 
+  let query_string = 
   `UPDATE product
     SET 
       lot_id = $1,
       bag_size = $2,
       number_of_bags = $3
-        WHERE id = $4;
-      
+        WHERE id = $4;  
+      `
+
+  let empty_pallets_string = 
+  `
   DELETE FROM product
     WHERE number_of_bags = 0;
 
@@ -261,11 +303,17 @@ app.put('/product/:product_id', (req, res) => {
           WHERE product.pallet_id IS NULL )
   `
 
-  pool.query(batch_string, [req.body.lot_id, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
+  pool.query(query_string, [req.body.lot_id, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
-          res.send(`product ${product_id} updated`)
+        pool.query(empty_pallets_string, (error, _) => {
+          if (error) {
+              res.status(422).send({ error: error.message })
+          } else {
+              res.send(`product ${product_id} updated`)
+          }
+      })
       }
   })
 })
