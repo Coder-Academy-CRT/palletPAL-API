@@ -3,7 +3,7 @@ const request = require("supertest")
 
 const app = require("./app") // so also require what we are testing
 
-describe("App (API) Request Tests", () => {
+describe("App .get Request Tests", () => {
 
 
   /// 1 ///
@@ -23,7 +23,7 @@ describe("App (API) Request Tests", () => {
 
     expect(res.status).toBe(200)
     expect(res.headers["content-type"]).toMatch(/json/i)
-    expect(res.body.length).toBe(22)
+    expect(res.body.length).toBe(22) 
 
   })
 
@@ -35,7 +35,7 @@ describe("App (API) Request Tests", () => {
 
     expect(res.status).toBe(200)
     expect(res.headers["content-type"]).toMatch(/json/i)
-    expect(res.body.length).toBe(20)
+    expect(res.body.length).toBe(20) // likely true only at time of testing
 
   })
 
@@ -61,6 +61,45 @@ describe("App (API) Request Tests", () => {
     expect(res.headers["content-type"]).toMatch(/json/i)
 
   })
+})
 
+
+
+describe("App .post Request Tests", () => {
+
+
+  /// 1 ///
+  test("POST /warehouse", async () => {
+
+    const res = await request(app)
+    .post ("/warehouse")  // sets up the post request, but no data yet
+    .send ({            // now we have the data
+      warehouse_name: 'Warehouse_Test'
+    }) 
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/json/i)
+    expect(res.body.name).toMatch("Warehouse_Test")
+  })
+
+  /// 2 ///  Note that this will fail if the same ( lot_code + bag_size ) is already on the pallet
+
+  test("POST /pallet/1/products", async () => {
+
+    const res = await request(app)
+    .post ("/pallet/1/products") 
+    .send ({         
+      lot_code : "AUSN121013",
+      bag_size : 99,
+      number_of_bags : 10.5
+    }) 
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/text/i)
+    expect(res.text).toBe("new product successfully added")
+  })
 
 })
+
+
+

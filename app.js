@@ -231,7 +231,7 @@ app.put('/product/:product_id', (req, res) => {
 
   const product_id = req.params.product_id
 
-  let query_string = 
+  let batch_string = 
   `UPDATE product
     SET 
       lot_id = $1,
@@ -249,7 +249,7 @@ app.put('/product/:product_id', (req, res) => {
           WHERE product.pallet_id IS NULL )
   `
 
-  pool.query(query_string, [req.body.lot_id, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
+  pool.query(batch_string, [req.body.lot_id, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
@@ -308,16 +308,16 @@ app.put('/product/:product_id', (req, res) => {
 
     pool.query(query_string, [
         req.body.location_type[0], 
-        req.body.coordinates[0], 
+        req.body.coordinates[0][0], 
         req.body.location_type[1], 
-        req.body.coordinates[1], 
+        req.body.coordinates[1][0], 
         req.body.location_type[2], 
-        req.body.coordinates[2] 
+        req.body.coordinates[2][0] 
       ], (error, _) => {
         if (error) {
             res.status(422).send({ error: error.message })
         } else {
-            res.send(`location types updated`)
+            res.send('location types updated')
         }
     })
 })
@@ -369,7 +369,8 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
       FROM lot
         WHERE lot_code = $2),
     $3,
-    $4);
+    $4), 
+    RETURNING *
   `
 
   pool.query(query_string, [
@@ -378,30 +379,31 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
     req.body.bag_size,
     req.body.number_of_bags
     ], (error, _) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
+      if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"') ) {
+        res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet. ")
+
       } else {
           res.send(`new product successfully added`)
       }
   })
 })
 
-// CREATE WAREHOUSE // testing confirmation required on response value
 
+// CREATE WAREHOUSE 
 
 app.post('/warehouse', (req, res) => {
 
   let query_string = 
   `INSERT INTO warehouse (name)
-  VALUES ($1)
-    );
+    VALUES ($1)
+      RETURNING name 
   `
 
-  pool.query(query_string, [req.body.warehouse_name], (error, results) => {
+  pool.query('INSERT INTO warehouse (name) VALUES ($1) RETURNING *', [req.body.warehouse_name], (error, results) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
-          res.send(results.rows[0]) //confirm with testing once merged
+          res.send(results.rows[0])
       }
   })
 })
