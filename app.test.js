@@ -215,12 +215,9 @@ describe("App .delete Request Tests", () => {
   /////////////////////////////////  PUT REQUESTS //////////////////////////////////////////////
 
 
-
-
   describe("App .put Request Tests", () => {
 
-
-    /// 1 ///
+    /// 1 /// 
     test("PUT /product/:product_id", async () => {
     
       let product_id = 18
@@ -237,6 +234,29 @@ describe("App .delete Request Tests", () => {
       expect(res.status).toBe(200)
       expect(res.headers["content-type"]).toMatch(/text/i)
       expect(res.text).toBe(`product ${product_id} updated`)
+    })
+
+
+    /// 2 ///
+    test("PUT /warehouse/:warehouse_id/lot/:lot_code", async () => {
+    
+      let original_lot_code = 'AUSN121009'
+      let new_lot_code = 'TEST_LOT_99'
+      let seed_type = 'oats'
+      let seed_variety = 'yarran'
+      
+      const res = await request(app)
+      
+      .put (`/warehouse/1/lot/${original_lot_code}`) 
+      .send ({         
+        lot_code : new_lot_code,
+        seed_type : seed_type,
+        seed_variety: seed_variety
+      }) 
+  
+      expect(res.status).toBe(200)
+      expect(res.headers["content-type"]).toMatch(/text/i)
+      expect(res.text).toBe(`lot ${original_lot_code} updated to ${new_lot_code}: ${seed_type} - ${seed_variety}`)
     })
 
   

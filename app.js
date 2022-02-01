@@ -327,20 +327,26 @@ app.put('/product/:product_id', (req, res) => {
     const lot_code = req.params.lot_code
   
     let query_string = 
-    `UPDATE product
-      SET lot_code = $1
+    `UPDATE lot
+      SET 
+        lot_code = $1,
+        seed_id = (
+          SELECT id
+            FROM seed
+              WHERE type = $2
+              AND variety = $3)
       WHERE id = (
         SELECT lot.id FROM lot
           INNER JOIN warehouse ON lot.warehouse_id = warehouse.id
-            WHERE lot_code = $2
-            AND warehouse.id = $3 );
+            WHERE lot_code = $4
+            AND warehouse.id = $5 );
     `
   
-    pool.query(query_string, [req.body.lot_code, lot_code, warehouse_id], (error, _) => {
+    pool.query(query_string, [req.body.lot_code, req.body.seed_type, req.body.seed_variety, lot_code, warehouse_id], (error, _) => {
         if (error) {
             res.status(422).send({ error: error.message })
         } else {
-            res.send(`lot code ${lot_code} changed to ${req.body.lot_code}`)
+            res.send(`lot ${lot_code} updated to ${req.body.lot_code}: ${req.body.seed_type} - ${req.body.seed_variety}`)
         }
     })
 })
