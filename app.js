@@ -139,7 +139,7 @@ app.get('/warehouse/:warehouse_id/products', (req, res) => {
 })
 
 
-///////////////////////////////// DELETE LOT, PALLET, PRODUCT ///////////////////////////////////////////
+///////////////////////////////// DELETE LOT, PALLET, EMPTY PALLETS, PRODUCT ///////////////////////////////////////////
 
 // DELETE PALLET
 
@@ -165,22 +165,14 @@ app.delete('/pallet/:pallet_id', (req, res) => {
 
 app.delete('/product/:product_id', (req, res) => {
 
-  const pallet_id = req.params.pallet_id
+  const product_id = req.params.product_id
 
   let query_string = 
   `DELETE FROM product
-    WHERE id = $1;
-
-    DELETE FROM pallet
-      WHERE id IN (
-        SELECT pallet.id AS empty_pallet_id FROM product
-          RIGHT JOIN pallet ON pallet.id = product.pallet_id
-            WHERE product.pallet_id IS NULL )
+    WHERE id = $1
   `
-  // optional additional SQL will search for any empty pallets (should generally just be a single one) and delete the pallet
-  
 
-  pool.query(query_string, [pallet_id], (error, _) => {
+  pool.query(query_string, [product_id], (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
@@ -188,6 +180,32 @@ app.delete('/product/:product_id', (req, res) => {
       }
   })
 })
+
+
+// DELETE EMPTY PALLETS
+
+app.delete('/pallets/empty', (req, res) => {
+
+  let query_string = 
+  `DELETE FROM product
+    WHERE number_of_bags = 0;
+
+  DELETE FROM pallet
+    WHERE id IN (
+      SELECT pallet.id AS empty_pallet_id FROM product
+        RIGHT JOIN pallet ON pallet.id = product.pallet_id
+          WHERE product.pallet_id IS NULL )
+  `
+
+  pool.query(query_string, (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send('empty pallets deleted')
+      }
+  })
+})
+
 
 
 // DELETE LOT
@@ -204,12 +222,6 @@ app.delete('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 	      INNER JOIN warehouse ON lot.warehouse_id = warehouse.id
 	      	WHERE lot_code = $1
 	      	AND warehouse.id = $2 );
-		
-    DELETE FROM pallet
-      WHERE id IN (
-        SELECT pallet.id AS empty_pallet_id FROM product
-          RIGHT JOIN pallet ON pallet.id = product.pallet_id
-            WHERE product.pallet_id IS NULL )
   `
   // optional additional SQL will search for any empty pallets (could be multiple here) and delete the pallet/s
   

@@ -3,8 +3,11 @@ const request = require("supertest")
 
 const app = require("./app") // so also require what we are testing
 
-describe("App .get Request Tests", () => {
 
+/////////////////////////////////   GET REQUESTS //////////////////////////////////////////////
+
+
+describe("App .get Request Tests", () => {
 
   /// 1 ///
   test("GET /", async () => {
@@ -64,6 +67,9 @@ describe("App .get Request Tests", () => {
 })
 
 
+/////////////////////////////////   POST REQUESTS //////////////////////////////////////////////
+
+
 
 describe("App .post Request Tests", () => {
 
@@ -83,7 +89,6 @@ describe("App .post Request Tests", () => {
   })
 
   /// 2 ///  Note that this will fail if the same ( lot_code + bag_size ) is already on the pallet
-
   test("POST /pallet/:pallet_id/products", async () => {
 
     let lot_code = "AUSN121013" // lot code needs to already exist, and not be represented on the same pallet in the same size bags
@@ -102,8 +107,7 @@ describe("App .post Request Tests", () => {
   })
 
 
-/// 3 /// Note that duplicate lots cannot be created in the same warehouse
-
+  /// 3 /// Note that duplicate lots cannot be created in the same warehouse
   test("POST /warehouse/:warehouse_id/lot/:lot_code", async () => {
     
     let lot_code = 'AUSN121112'
@@ -123,3 +127,70 @@ describe("App .post Request Tests", () => {
 
 })
 
+
+
+/////////////////////////////////   DELETE REQUESTS //////////////////////////////////////////////
+
+
+describe("App .delete Request Tests", () => {
+
+
+  /// 1 ///
+  test("DELETE /pallet/:pallet_id", async () => {
+
+    let pallet_id = 2
+
+    const res = await request(app)
+    .delete (`/pallet/${pallet_id}`)
+    // no .send required at this stage, as information is passed directly through params
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/text/i)
+    expect(res.text).toBe(`pallet ${pallet_id} deleted`)
+  })
+
+
+  /// 2 ///
+  test("DELETE /product/:product_id", async () => {
+
+    let product_id = 3
+
+    const res = await request(app)
+    .delete (`/product/${product_id}`)
+    // no .send required at this stage, as information is passed directly through params
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/text/i)
+    expect(res.text).toBe(`product ${product_id} deleted`)
+  })
+
+
+  /// 3 ///  At some stage this could potentially be combined with delete requests for lots and products
+  test("DELETE /pallets/empty", async () => {
+
+    const res = await request(app)
+    .delete('/pallets/empty')
+    // no .send required, this just runs the query to delete empty products and pallets
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/text/i)
+    expect(res.text).toBe(`empty pallets deleted`)
+  })
+
+
+  /// 4 ///  
+  test("DELETE /warehouse/:warehouse_id/lot/:lot_code", async () => {
+
+    let lot_code = 'AUSN121001'
+
+    const res = await request(app)
+    .delete(`/warehouse/1/lot/${lot_code}`)
+    // no .send required at this stage, as information is passed directly through params
+
+    expect(res.status).toBe(200)
+    expect(res.headers["content-type"]).toMatch(/text/i)
+    expect(res.text).toBe(`lot ${lot_code} deleted`)
+  })
+
+
+})
