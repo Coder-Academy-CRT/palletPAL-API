@@ -157,8 +157,9 @@ app.get('/warehouse/:warehouse_id/products', (req, res) => {
 })
 
 
+///////////////////////////////// DELETE LOT, PALLET, PRODUCT ///////////////////////////////////////////
 
-// DELETE PALLETS & PRODUCTS
+// DELETE PALLET
 
 app.delete('/pallet/:pallet_id', (req, res) => {
 
@@ -177,6 +178,8 @@ app.delete('/pallet/:pallet_id', (req, res) => {
   })
 })
 
+
+// DELETE PRODUCT 
 
 app.delete('/product/:product_id', (req, res) => {
 
@@ -205,7 +208,44 @@ app.delete('/product/:product_id', (req, res) => {
 })
 
 
-// UPDATE PRODUCT 
+// DELETE LOT
+
+app.delete('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
+
+  const warehouse_id = req.params.warehouse_id
+  const lot_code = req.params.lot_code
+
+  let query_string = 
+  `DELETE FROM lot
+	  WHERE id = (
+      SELECT lot.id FROM lot
+	      INNER JOIN warehouse ON lot.warehouse_id = warehouse.id
+	      	WHERE lot_code = $1
+	      	AND warehouse.id = $2 );
+		
+
+    DELETE FROM pallet
+      WHERE id IN (
+        SELECT pallet.id AS empty_pallet_id FROM product
+          RIGHT JOIN pallet ON pallet.id = product.pallet_id
+            WHERE product.pallet_id IS NULL )
+  `
+  // optional additional SQL will search for any empty pallets (could be multiple here) and delete the pallet/s
+  
+  pool.query(query_string, [lot_code, warehouse_id], (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+          res.send(`lot ${lot_code} deleted`)
+      }
+  })
+})
+
+
+
+////////////////////////////////////// UPDATE PRODUCT AND LOT ///////////////////////////////////////////
+
+// UPDATE PRODUCT
 
 app.put('/product/:product_id', (req, res) => {
 
@@ -213,7 +253,7 @@ app.put('/product/:product_id', (req, res) => {
 
   let query_string = 
   `UPDATE product
-    SET number_of_bags = $1
+    SET lot_code = $1
       WHERE id = $2;
       
   DELETE FROM product
@@ -226,18 +266,42 @@ app.put('/product/:product_id', (req, res) => {
           WHERE product.pallet_id IS NULL )
   `
 
-  pool.query(query_string, [req.body.number_of_bags, pallet_id], (error, _) => {
+  pool.query(query_string, [req.body.number_of_bags, product_id], (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
           res.send(`product ${product_id} updated`)
       }
   })
-
-
-
 })
 
+
+  // UPDATE LOT
+
+  app.put('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
+
+    const warehouse_id = req.params.warehouse_id
+    const lot_code = req.params.lot_code
+  
+    let query_string = 
+    `UPDATE product
+      SET lot_code = $1
+      WHERE id = (
+        SELECT lot.id FROM lot
+          INNER JOIN warehouse ON lot.warehouse_id = warehouse.id
+            WHERE lot_code = $2
+            AND warehouse.id = $3 );
+    `
+  
+    pool.query(query_string, [req.lot_code, lot_code, warehouse_id], (error, _) => {
+        if (error) {
+            res.status(422).send({ error: error.message })
+        } else {
+            res.send(`lot code ${lot_code} changed to ${req.lot_code}`)
+        }
+    })
+
+})
 
 
 
