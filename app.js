@@ -274,7 +274,7 @@ app.delete('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 })
 
 
-////////////////////////////////////// UPDATE PRODUCT AND LOT ///////////////////////////////////////////
+////////////////////////////////////// UPDATE PRODUCT, LOT AND LOCATION ///////////////////////////////////////////
 
 // UPDATE PRODUCT
 
@@ -353,39 +353,36 @@ app.put('/product/:product_id', (req, res) => {
 
   // UPDATE LOCATION
 
-  app.put('/locations', (req, res) => {
+app.put('/locations', (req, res) => {
 
     let query_string = 
-    `UPDATE product
-      SET location_type = $1
-        WHERE coords IN $2;
+    `UPDATE location
+      SET location_type_id = CASE
+        WHEN coord IN ( SELECT unnest($1::text[])) THEN $2
+        WHEN coord IN ( SELECT unnest($3::text[])) THEN $4
+        WHEN coord IN ( SELECT unnest($5::text[])) THEN $6
+      ELSE location_type_id
+      END
+        WHERE coord IN (SELECT unnest($7::text[]));
+      `
 
-    UPDATE product
-      SET location_type = $3
-        WHERE coords IN $4;
-
-    UPDATE product
-      SET location_type = $5
-        WHERE coords IN $6
-    `
-    // consider option for location_type to be an array of relating ids
-    // consider option for coordinates to be an array of arrays, where matching coordinates are assigned
-    // alternative consider single object with types as keys and values as the array of matching coordinates
-
-    pool.query(query_string, [
-        req.body.location_type[0], 
-        req.body.coordinates[0][0], 
-        req.body.location_type[1], 
-        req.body.coordinates[1][0], 
-        req.body.location_type[2], 
-        req.body.coordinates[2][0] 
-      ], (error, _) => {
-        if (error) {
-            res.status(422).send({ error: error.message })
-        } else {
-            res.send('location types updated')
-        }
-    })
+  pool.query(query_string, 
+    [
+      req.body.coordinates[0],
+      req.body.location_type[0],
+      req.body.coordinates[1],
+      req.body.location_type[1],
+      req.body.coordinates[2],
+      req.body.location_type[2],
+      req.body.coordinates.flat()
+    ], 
+      (error, _) => {
+      if (error) {
+          res.status(422).send({ error: error.message })
+      } else {
+        res.send("Warehouse locations updated")
+    }
+  })
 })
 
 

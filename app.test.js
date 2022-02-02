@@ -259,5 +259,21 @@ describe("App .delete Request Tests", () => {
       expect(res.text).toBe(`lot ${original_lot_code} updated to ${new_lot_code}: ${seed_type} - ${seed_variety}`)
     })
 
+
+     /// 3 ///
+     test("PUT /locations", async () => {
+    
+      const res = await request(app)
+      
+      .put (`/locations`) 
+      .send ({         
+        location_type : [1, 2, 3],
+        coordinates : [ ["03_00", "03_01"], ["02_00", "02_01"], ["01_00", "01_01" ] ]
+      }) 
+  
+      expect(res.status).toBe(200)
+      expect(res.headers["content-type"]).toMatch(/text/i)
+      expect(res.text).toBe("Warehouse locations updated")
+    })
   
   })
