@@ -226,7 +226,7 @@ describe("App .delete Request Tests", () => {
       
       .put (`/product/${product_id}`) 
       .send ({         
-        lot_id : 16,
+        lot_code : 'AUSN121008',
         bag_size : 77,
         number_of_bags: 0
       }) 
@@ -261,11 +261,12 @@ describe("App .delete Request Tests", () => {
 
 
      /// 3 ///
-     test("PUT /locations", async () => {
+     test("PUT /warehouse/:warehouse_id/locations", async () => {
     
+      const warehouse_id = 1
       const res = await request(app)
       
-      .put (`/locations`) 
+      .put (`/warehouse/${warehouse_id}/locations`) 
       .send ({         
         location_type : [1, 2, 3],
         coordinates : [ ["03_00", "03_01"], ["02_00", "02_01"], ["01_00", "01_01" ] ]
@@ -273,7 +274,7 @@ describe("App .delete Request Tests", () => {
   
       expect(res.status).toBe(200)
       expect(res.headers["content-type"]).toMatch(/text/i)
-      expect(res.text).toBe("Warehouse locations updated")
+      expect(res.text).toBe(`Warehouse ${warehouse_id} locations updated`)
     })
   
   })
