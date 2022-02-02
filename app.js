@@ -5,11 +5,8 @@ require('dotenv').config()
 
 const Pool = require('pg').Pool
 const pool = new Pool({
-  user: process.env.USERNAME,
-  password: process.env.PASSWORD,
-  host: process.env.HOST,
-  port: process.env.PORT,
-  database: process.env.DATABASENAME
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized : false }
 })
 
 const app = express()
@@ -282,7 +279,10 @@ app.put('/product/:product_id', (req, res) => {
   let query_string = 
   `UPDATE product
     SET 
-      lot_id = $1,
+      lot_id = (
+        SELECT id 
+          FROM lot
+            WHERE lot_code = $1),
       bag_size = $2,
       number_of_bags = $3
         WHERE id = $4;  
@@ -300,7 +300,7 @@ app.put('/product/:product_id', (req, res) => {
           WHERE product.pallet_id IS NULL )
   `
 
-  pool.query(query_string, [req.body.lot_id, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
+  pool.query(query_string, [req.body.lot_code, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
     if (error) {
         res.status(422).send({ error: error.message })
     } else {
@@ -350,7 +350,9 @@ app.put('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 
 // UPDATE LOCATION
 
-app.put('/locations', (req, res) => {
+app.put('/warehouse/:warehouse_id/locations', (req, res) => {
+
+  let warehouse_id = req.params.warehouse_id
 
   let query_string = 
   `UPDATE location
@@ -360,7 +362,8 @@ app.put('/locations', (req, res) => {
       WHEN coord IN ( SELECT unnest($5::text[])) THEN $6
     ELSE location_type_id
     END
-      WHERE coord IN (SELECT unnest($7::text[]));
+      WHERE coord IN (SELECT unnest($7::text[]))
+      AND warehouse_id = $8;
     `
 
   pool.query(query_string, 
@@ -371,13 +374,14 @@ app.put('/locations', (req, res) => {
       req.body.location_type[1],
       req.body.coordinates[2],
       req.body.location_type[2],
-      req.body.coordinates.flat()
+      req.body.coordinates.flat(),
+      warehouse_id
     ], 
       (error, _) => {
       if (error) {
           res.status(422).send({ error: error.message })
       } else {
-        res.send("Warehouse locations updated")
+        res.send(`Warehouse ${warehouse_id} locations updated`)
     }
   })
 })
