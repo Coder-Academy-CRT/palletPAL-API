@@ -152,11 +152,11 @@ app.delete('/pallet/:pallet_id', (req, res) => {
     WHERE id = $1`
 
   pool.query(query_string, [pallet_id], (error, _) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-          res.send(`pallet ${pallet_id} deleted`)
-      }
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+        res.send(`pallet ${pallet_id} deleted`)
+    }
   })
 })
 
@@ -185,21 +185,18 @@ app.delete('/product/:product_id', (req, res) => {
   `
 
   pool.query(query_string, [product_id], (error, _) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-          pool.query(empty_pallets_string, (error, _) => {
-            if (error) {
-                res.status(422).send({ error: error.message })
-            } else {
-                res.send(`product ${product_id} deleted`)
-            }
-          })
-      }
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+      pool.query(empty_pallets_string, (error, _) => {
+        if (error) {
+            res.status(422).send({ error: error.message })
+        } else {
+            res.send(`product ${product_id} deleted`)
+        }
+      })
+    }
   })
-
-  
-
 })
 
 
@@ -219,11 +216,11 @@ app.delete('/pallets/empty', (req, res) => {
   `
 
   pool.query(query_string, (error, _) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-          res.send('empty pallets deleted')
-      }
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+        res.send('empty pallets deleted')
+    }
   })
 })
 
@@ -259,17 +256,17 @@ app.delete('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
   // optional additional SQL will search for any empty pallets (could be multiple here) and delete the pallet/s
   
   pool.query(query_string, [lot_code, warehouse_id], (error, _) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-        pool.query(query_string, [lot_code, warehouse_id], (error, _) => {
-          if (error) {
-              res.status(422).send({ error: error.message })
-          } else {
-              res.send(`lot ${lot_code} deleted`)
-          }
-        })
-      }
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+      pool.query(empty_pallets_string, (error, _) => {
+        if (error) {
+            res.status(422).send({ error: error.message })
+        } else {
+            res.send(`lot ${lot_code} deleted`)
+        }
+      })
+    }
   })
 })
 
@@ -304,67 +301,67 @@ app.put('/product/:product_id', (req, res) => {
   `
 
   pool.query(query_string, [req.body.lot_id, req.body.bag_size, req.body.number_of_bags, product_id], (error, _) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-        pool.query(empty_pallets_string, (error, _) => {
-          if (error) {
-              res.status(422).send({ error: error.message })
-          } else {
-              res.send(`product ${product_id} updated`)
-          }
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+      pool.query(empty_pallets_string, (error, _) => {
+        if (error) {
+            res.status(422).send({ error: error.message })
+        } else {
+            res.send(`product ${product_id} updated`)
+        }
       })
-      }
+    }
   })
 })
 
 
-  // UPDATE LOT
+// UPDATE LOT
 
-  app.put('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
+app.put('/warehouse/:warehouse_id/lot/:lot_code', (req, res) => {
 
-    const warehouse_id = req.params.warehouse_id
-    const lot_code = req.params.lot_code
-  
-    let query_string = 
-    `UPDATE lot
-      SET 
-        lot_code = $1,
-        seed_id = (
-          SELECT id
-            FROM seed
-              WHERE type = $2
-              AND variety = $3)
-      WHERE id = (
-        SELECT lot.id FROM lot
-          INNER JOIN warehouse ON lot.warehouse_id = warehouse.id
-            WHERE lot_code = $4
-            AND warehouse.id = $5 );
-    `
-  
-    pool.query(query_string, [req.body.lot_code, req.body.seed_type, req.body.seed_variety, lot_code, warehouse_id], (error, _) => {
-        if (error) {
-            res.status(422).send({ error: error.message })
-        } else {
-            res.send(`lot ${lot_code} updated to ${req.body.lot_code}: ${req.body.seed_type} - ${req.body.seed_variety}`)
-        }
-    })
+  const warehouse_id = req.params.warehouse_id
+  const lot_code = req.params.lot_code
+
+  let query_string = 
+  `UPDATE lot
+    SET 
+      lot_code = $1,
+      seed_id = (
+        SELECT id
+          FROM seed
+            WHERE type = $2
+            AND variety = $3)
+    WHERE id = (
+      SELECT lot.id FROM lot
+        INNER JOIN warehouse ON lot.warehouse_id = warehouse.id
+          WHERE lot_code = $4
+          AND warehouse.id = $5 );
+  `
+
+  pool.query(query_string, [req.body.lot_code, req.body.seed_type, req.body.seed_variety, lot_code, warehouse_id], (error, _) => {
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+        res.send(`lot ${lot_code} updated to ${req.body.lot_code}: ${req.body.seed_type} - ${req.body.seed_variety}`)
+    }
+  })
 })
 
-  // UPDATE LOCATION
+// UPDATE LOCATION
 
 app.put('/locations', (req, res) => {
 
-    let query_string = 
-    `UPDATE location
-      SET location_type_id = CASE
-        WHEN coord IN ( SELECT unnest($1::text[])) THEN $2
-        WHEN coord IN ( SELECT unnest($3::text[])) THEN $4
-        WHEN coord IN ( SELECT unnest($5::text[])) THEN $6
-      ELSE location_type_id
-      END
-        WHERE coord IN (SELECT unnest($7::text[]));
-      `
+  let query_string = 
+  `UPDATE location
+    SET location_type_id = CASE
+      WHEN coord IN ( SELECT unnest($1::text[])) THEN $2
+      WHEN coord IN ( SELECT unnest($3::text[])) THEN $4
+      WHEN coord IN ( SELECT unnest($5::text[])) THEN $6
+    ELSE location_type_id
+    END
+      WHERE coord IN (SELECT unnest($7::text[]));
+    `
 
   pool.query(query_string, 
     [
@@ -438,14 +435,20 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
     $4);
   `
 
-  pool.query(query_string, [
-    pallet_id, 
-    req.body.lot_code, 
-    req.body.bag_size,
-    req.body.number_of_bags
+  pool.query(query_string, 
+    [
+      pallet_id, 
+      req.body.lot_code, 
+      req.body.bag_size,
+      req.body.number_of_bags
     ], (error, _) => {
       if (error) {
-          res.status(422).send({ error: error.message })
+        if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"')) {
+          res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet.")
+        } else if (error.message.includes('insert or update on table \"product\" violates foreign key constraint \"fk_pallet\"')) {
+          res.send("This method requires an existing pallet to add product to. Check params.")
+        } else {
+          res.status(422).send({ error: error.message }) }
       } else {
           res.send(`new product successfully added`)
       }
@@ -466,7 +469,7 @@ app.post('/location/:location_coords/products', (req, res) => {
         WHERE coord = $1)
     );`
 
-    let empty_pallets_string = 
+  let empty_pallets_string = 
   `
   DELETE FROM product
     WHERE number_of_bags = 0;
@@ -511,7 +514,7 @@ app.post('/location/:location_coords/products', (req, res) => {
           if (error) {
 
             // if there is an error with creating the product, then delete the empty pallet 
-            pool.query(query_string, (error, _) => {
+            pool.query(empty_pallets_string, (error, _) => {
               if (error) {
                   res.status(422).send({ error: error.message })
               } else {
@@ -539,16 +542,17 @@ app.post('/warehouse', (req, res) => {
   let query_string = 
   `INSERT INTO warehouse (name)
     VALUES ($1)
-      RETURNING name 
+      RETURNING *
   `
 
-  pool.query('INSERT INTO warehouse (name) VALUES ($1) RETURNING *', [req.body.warehouse_name], (error, results) => {
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-          res.send(results.rows[0])
-      }
+  pool.query(query_string, [req.body.warehouse_name], (error, results) => {
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+        res.send(results.rows[0])
+    }
   })
 })
 
 module.exports = app
+

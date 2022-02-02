@@ -91,10 +91,10 @@ describe("App .post Request Tests", () => {
   /// 2 ///  Note that this will fail if the same ( lot_code + bag_size ) is already on the pallet
   test("POST /pallet/:pallet_id/products", async () => {
 
-    let lot_code = "AUSN121013" // lot code needs to already exist, and not be represented on the same pallet in the same size bags
+    let lot_code = "AUSN121020" // lot code needs to already exist, and not be represented on the same pallet in the same size bags
 
     const res = await request(app)
-    .post ("/pallet/1/products") 
+    .post ("/pallet/1/products")   // pallet id must exist for this request
     .send ({         
       lot_code : lot_code,
       bag_size : 99,
