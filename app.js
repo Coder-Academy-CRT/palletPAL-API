@@ -6,8 +6,7 @@ require('dotenv').config()
 const Pool = require('pg').Pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized : false },
-  ssl: false
+  ssl: { rejectUnauthorized : false }
 })
 
 const app = express()
