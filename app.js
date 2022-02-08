@@ -540,6 +540,7 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
                 res.status(422).send({ error: error.message })
             } else {
                 res.send(results.rows[0])
+                
             }
           })
       }
