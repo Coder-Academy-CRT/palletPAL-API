@@ -291,5 +291,20 @@ describe("App .delete Request Tests", () => {
       expect(res.headers["content-type"]).toMatch(/text/i)
       expect(res.text).toBe(`Warehouse ${warehouse_id} locations updated`)
     })
+
+    /// 4 ///
+    test("PUT /pallet/:pallet_id/location/:location_coord", async () => {
+    
+      const pallet_id = 13
+      const location_coord = '03_03'
+      const res = await request(app)
+      
+      .put (`/pallet/${pallet_id}/location/${location_coord}`) 
+      // no request object, details all in params
+  
+      expect(res.status).toBe(200)
+      expect(res.headers["content-type"]).toMatch(/text/i)
+      expect(res.text).toBe(`pallet #${pallet_id} moved to location ${location_coord}`)
+    })
   
   })
