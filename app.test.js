@@ -98,7 +98,7 @@ describe("App .post Request Tests", () => {
     }) 
 
     expect(res.status).toBe(200)
-    expect(res.headers["content-type"]).toMatch(/json/i)
+    expect(res.headers["content-type"]).toMatch(/json/i) // will fail when sending an error message (text)
     expect(res.body.name).toMatch("Warehouse_Test")
   })
 
@@ -141,21 +141,22 @@ describe("App .post Request Tests", () => {
 
 
   /// 4 /// NEW PRODUCT (includes new pallet)
-  test("POST /location/:location_coords/products'", async () => {
+  test("POST /warehouse/:warehouse_id/location/:location_coords/products'", async () => {
 
-    let location_coords = '03_04'
+    let location_coords = '03_01'
+    let warehouse_id = 1
    
     const res = await request(app)
-    .post (`/location/${location_coords}/products`) 
+    .post (`/warehouse/${warehouse_id}/location/${location_coords}/products`) 
     .send ({         
-      lot_code : "AUSN121002",
-      bag_size : 98,
+      lot_code : 'AUSN121002',
+      bag_size : 9,
       number_of_bags : 10.5
     }) 
 
     expect(res.status).toBe(200)
-    expect(res.headers["content-type"]).toMatch(/text/i)
-    expect(res.text).toBe("new product successfully added")
+    expect(res.headers["content-type"]).toMatch(/json/i)
+    expect(res.text).toBeInstanceOf(object)
   })
 
 })

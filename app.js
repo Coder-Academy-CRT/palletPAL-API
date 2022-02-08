@@ -6,8 +6,7 @@ require('dotenv').config()
 const Pool = require('pg').Pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized : false },
-  ssl: false
+  ssl: { rejectUnauthorized : false }
 })
 
 const app = express()
@@ -460,7 +459,8 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
       FROM lot
         WHERE lot_code = $2),
     $3,
-    $4);
+    $4)
+    RETURNING product.id;
   `
 
   pool.query(query_string, 
@@ -469,7 +469,7 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
       req.body.lot_code, 
       req.body.bag_size,
       req.body.number_of_bags
-    ], (error, _) => {
+    ], (error, results) => {
       if (error) {
         if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"')) {
           res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet.")
@@ -478,7 +478,39 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
         } else {
           res.status(422).send({ error: error.message }) }
       } else {
-          res.send(`new product successfully added`)
+
+        // if no errors adding the product to existing pallet, then complete a select query to send back product information
+        let product_id = results.rows[0].id
+        let return_product_object_string = 
+        `SELECT
+        product.id AS product_id,
+        coord AS coordinates, 
+        pallet.id AS pallet_id, 
+        lot_code, 
+        seed.type AS seed_type, 
+        seed.variety AS seed_variety, 
+        product.bag_size, 
+        product.number_of_bags	
+      
+          FROM product
+            INNER JOIN lot ON product.lot_id = lot.id
+              INNER JOIN seed ON lot.seed_id = seed.id
+                INNER JOIN pallet ON product.pallet_id = pallet.id
+                  INNER JOIN location ON pallet.location_id = location.id
+                    INNER JOIN warehouse ON location.warehouse_id = warehouse.id
+          
+          WHERE product.id = $1        
+        `
+
+        pool.query(return_product_object_string, [ product_id ], 
+          (error, results) => {
+
+            if (error) {
+                res.status(422).send({ error: error.message })
+            } else {
+                res.send(results.rows[0])
+            }
+          })
       }
   })
 })
@@ -486,15 +518,17 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
 
 // CREATE NEW PRODUCT (NEW PALLET CREATED AT SAME TIME)
 
-app.post('/location/:location_coords/products', (req, res) => {
+app.post('/warehouse/:warehouse_id/location/:location_coords/products', (req, res) => {
 
   const location_coords = req.params.location_coords
+  const warehouse_id = req.params.warehouse_id
 
   let create_pallet = 
   `INSERT INTO pallet (location_id)
     VALUES (
       (SELECT id FROM location
-        WHERE coord = $1)
+        WHERE coord = $1
+        AND warehouse_id = $2)
     );`
 
   let empty_pallets_string = 
@@ -526,10 +560,11 @@ app.post('/location/:location_coords/products', (req, res) => {
             WHERE lot_code = $1
       ),
     $2,
-    $3) 
+    $3)
+    RETURNING product.id
   `
 
-  pool.query(create_pallet, [location_coords], (error, _) => {
+  pool.query(create_pallet, [location_coords, warehouse_id], (error, _) => {
     if (error) {
         res.status(422).send({ error: error.message })
     } else {
@@ -538,7 +573,7 @@ app.post('/location/:location_coords/products', (req, res) => {
         req.body.lot_code, 
         req.body.bag_size,
         req.body.number_of_bags
-        ], (error, _) => {
+        ], (error, results) => {
           if (error) {
 
             // if there is an error with creating the product, then delete the empty pallet 
@@ -555,7 +590,40 @@ app.post('/location/:location_coords/products', (req, res) => {
             } else {
               res.status(422).send({ error: error.message }) }
           } else {
-              res.send(`new product successfully added`)
+
+              // if pallet plus product successfully added, return the new product object 
+
+              let product_id = results.rows[0].id
+              let return_product_object_string = 
+              `SELECT
+              product.id AS product_id,
+              coord AS coordinates, 
+              pallet.id AS pallet_id, 
+              lot_code, 
+              seed.type AS seed_type, 
+              seed.variety AS seed_variety, 
+              product.bag_size, 
+              product.number_of_bags	
+            
+                FROM product
+                  INNER JOIN lot ON product.lot_id = lot.id
+                    INNER JOIN seed ON lot.seed_id = seed.id
+                      INNER JOIN pallet ON product.pallet_id = pallet.id
+                        INNER JOIN location ON pallet.location_id = location.id
+                          INNER JOIN warehouse ON location.warehouse_id = warehouse.id
+                
+                WHERE product.id = $1        
+              `
+
+              pool.query(return_product_object_string, [ product_id ], 
+                (error, results) => {
+
+                  if (error) {
+                      res.status(422).send({ error: error.message })
+                  } else {
+                      res.send(results.rows[0])
+                  }
+                })
           }
         })
      }
