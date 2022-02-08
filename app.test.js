@@ -64,6 +64,18 @@ describe("App .get Request Tests", () => {
     expect(res.headers["content-type"]).toMatch(/json/i)
 
   })
+
+
+
+ /// 6 ///
+ test("GET /warehouses", async () => {
+
+  const res = await request(app).get("/warehouses")
+
+  expect(res.status).toBe(200)
+  expect(res.headers["content-type"]).toMatch(/json/i)
+
+  })
 })
 
 
@@ -80,7 +92,9 @@ describe("App .post Request Tests", () => {
     const res = await request(app)
     .post ("/warehouse")  // sets up the post request, but no data yet
     .send ({            // now we have the data
-      warehouse_name: 'Warehouse_Test'
+      warehouse_name: 'Warehouse_Test',
+      rows: 4,
+      columns: 4
     }) 
 
     expect(res.status).toBe(200)
@@ -129,13 +143,13 @@ describe("App .post Request Tests", () => {
   /// 4 /// NEW PRODUCT (includes new pallet)
   test("POST /location/:location_coords/products'", async () => {
 
-    let location_coords = '03_03'
+    let location_coords = '03_04'
    
     const res = await request(app)
     .post (`/location/${location_coords}/products`) 
     .send ({         
-      lot_code : "AUSN121003",
-      bag_size : 99,
+      lot_code : "AUSN121002",
+      bag_size : 98,
       number_of_bags : 10.5
     }) 
 

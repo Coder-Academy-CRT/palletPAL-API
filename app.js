@@ -6,7 +6,8 @@ require('dotenv').config()
 const Pool = require('pg').Pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized : false }
+  ssl: { rejectUnauthorized : false },
+  ssl: false
 })
 
 const app = express()
@@ -30,6 +31,24 @@ app.get('/seeds', (req, res) => {
   let query_string = 
   `SELECT type, variety 
     FROM seed`
+    
+  pool.query( query_string, (error, results) => {
+    if (error) {
+      res.status(422).send({ error: error.message })
+    } else if (results.rows.length == 0) {
+        res.status(404).send({ error: 'No entries' })
+    } else {
+        res.send(results.rows)
+    }
+  })
+})
+
+// READ WAREHOUSES
+
+app.get('/warehouses', (_, res) => {
+ 
+  let query_string = 
+  `SELECT * FROM warehouse`
     
   pool.query( query_string, (error, results) => {
     if (error) {
@@ -134,6 +153,11 @@ app.get('/warehouse/:warehouse_id/products', (req, res) => {
     }
   })
 })
+
+
+// READ ALL LOTS
+
+
 
 
 ///////////////////////////////// DELETE LOT, PALLET, EMPTY PALLETS, PRODUCT ///////////////////////////////////////////
@@ -544,14 +568,22 @@ app.post('/location/:location_coords/products', (req, res) => {
 app.post('/warehouse', (req, res) => {
 
   let query_string = 
-  `INSERT INTO warehouse (name)
-    VALUES ($1)
+  `INSERT INTO warehouse (name, rows, columns)
+    VALUES ($1, $2, $3)
       RETURNING *
   `
 
-  pool.query(query_string, [req.body.warehouse_name], (error, results) => {
+  pool.query(query_string, [
+    req.body.warehouse_name,
+    req.body.rows,
+    req.body.columns
+  ], (error, results) => {
+    
     if (error) {
-        res.status(422).send({ error: error.message })
+      if (error.message.includes("duplicate key value violates unique constraint")) {
+        res.send("This warehouse name already exists. Please choose another name")
+      } else {
+        res.status(422).send({ error: error.message }) }
     } else {
         res.send(results.rows[0])
     }
