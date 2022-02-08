@@ -568,14 +568,22 @@ app.post('/location/:location_coords/products', (req, res) => {
 app.post('/warehouse', (req, res) => {
 
   let query_string = 
-  `INSERT INTO warehouse (name)
-    VALUES ($1)
+  `INSERT INTO warehouse (name, rows, columns)
+    VALUES ($1, $2, $3)
       RETURNING *
   `
 
-  pool.query(query_string, [req.body.warehouse_name], (error, results) => {
+  pool.query(query_string, [
+    req.body.warehouse_name,
+    req.body.rows,
+    req.body.columns
+  ], (error, results) => {
+    
     if (error) {
-        res.status(422).send({ error: error.message })
+      if (error.message.includes("duplicate key value violates unique constraint")) {
+        res.send("This warehouse name already exists. Please choose another name")
+      } else {
+        res.status(422).send({ error: error.message }) }
     } else {
         res.send(results.rows[0])
     }
