@@ -411,36 +411,36 @@ app.put('/warehouse/:warehouse_id/locations', (req, res) => {
 
 // UPDATE SPECIFIC PALLET LOCATION
 
-app.put('/pallet/:pallet_id/location/:new_location', (req, res) => {
+// app.put('/pallet/:pallet_id/location/:new_location', (req, res) => {
 
-  let pallet_id = req.params.pallet_id
-  let new_location_coords = req.params.new_location
+//   const pallet_id = req.params.pallet_id
+//   const new_location_coords = req.params.new_location
 
-  let query_string = 
-  `
-  UPDATE pallet
-    SET location_id = (
-      SELECT location.id 
-        FROM location
-          WHERE location.warehouse_id = (
-            SELECT warehouse.id
-                  FROM warehouse
-                INNER JOIN location ON warehouse.id = location.warehouse_id
-                        INNER JOIN pallet ON pallet.id = location.id	
-              WHERE pallet.id = $1
-          ) AND location.coord = $2
-      ) WHERE pallet.id = $1
-  `
-  pool.query(query_string, [ pallet_id, new_location_coords ], 
-    (error, _) => {
+//   let query_string = 
+//   `
+//   UPDATE pallet
+//     SET location_id = (
+//       SELECT location.id 
+//         FROM location
+//           WHERE location.warehouse_id = (
+//             SELECT warehouse.id
+//                   FROM warehouse
+//                 INNER JOIN location ON warehouse.id = location.warehouse_id
+//                         INNER JOIN pallet ON pallet.id = location.id	
+//               WHERE pallet.id = $1
+//           ) AND location.coord = $2
+//       ) WHERE pallet.id = $1
+//   `
+//   pool.query(query_string, [ pallet_id, new_location_coords ], 
+//     (error, _) => {
 
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-          res.send(`pallet #${pallet_id} moved to location ${new_location_coords}`)
-      }
-    })
-})
+//       if (error) {
+//           res.status(422).send({ error: error.message })
+//       } else {
+//           res.send(`pallet #${pallet_id} moved to location ${new_location_coords}`)
+//       }
+//     })
+// })
 
 ////////////////////////////  CREATE PRODUCT, LOT, WAREHOUSE  ///////////////////////////////////////////
 
