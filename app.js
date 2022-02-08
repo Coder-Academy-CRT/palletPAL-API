@@ -6,7 +6,8 @@ require('dotenv').config()
 const Pool = require('pg').Pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized : false }
+  ssl: { rejectUnauthorized : false },
+  ssl: false
 })
 
 const app = express()
@@ -598,7 +599,7 @@ app.post('/warehouse/:warehouse_id/location/:location_coords/products', (req, re
 
   pool.query(create_pallet, [location_coords, warehouse_id], (error, _) => {
     if (error) {
-        res.status(422).send({ error: error.message })
+        return res.status(422).send({ error: error.message })
     } else {
 
       pool.query(query_string, [
@@ -608,59 +609,54 @@ app.post('/warehouse/:warehouse_id/location/:location_coords/products', (req, re
         ], (error, results) => {
           if (error) {
 
-            // if there is an error with creating the product, then delete the empty pallet 
-            pool.query(empty_pallets_string, (error, _) => {
-              if (error) {
-                  res.status(422).send({ error: error.message })
+            pool.query(empty_pallets_string, (empty_error, _) => {
+              if (empty_error) {
+                  return res.status(422).send({ error: empty_error.message })
               } else {
-                  res.send('empty pallets deleted')
+                return res.send("Error creating product. Empty pallet removed.") 
               }
             })
 
-            if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"')) {
-              res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet.")
-            } else {
-              res.status(422).send({ error: error.message }) }
           } else {
 
-              // if pallet plus product successfully added, return the new product object 
+            // if pallet plus product successfully added, return the new product object 
 
-              let product_id = results.rows[0].id
-              let return_product_object_string = 
-              `SELECT
-              product.id AS product_id,
-              coord AS coordinates, 
-              pallet.id AS pallet_id, 
-              lot_code, 
-              seed.type AS seed_type, 
-              seed.variety AS seed_variety, 
-              product.bag_size, 
-              product.number_of_bags	
-            
-                FROM product
-                  INNER JOIN lot ON product.lot_id = lot.id
-                    INNER JOIN seed ON lot.seed_id = seed.id
-                      INNER JOIN pallet ON product.pallet_id = pallet.id
-                        INNER JOIN location ON pallet.location_id = location.id
-                          INNER JOIN warehouse ON location.warehouse_id = warehouse.id
-                
-                WHERE product.id = $1        
-              `
+            let product_id = results.rows[0].id
+            let return_product_object_string = 
+            `SELECT
+            product.id AS product_id,
+            coord AS coordinates, 
+            pallet.id AS pallet_id, 
+            lot_code, 
+            seed.type AS seed_type, 
+            seed.variety AS seed_variety, 
+            product.bag_size, 
+            product.number_of_bags	
+          
+              FROM product
+                INNER JOIN lot ON product.lot_id = lot.id
+                  INNER JOIN seed ON lot.seed_id = seed.id
+                    INNER JOIN pallet ON product.pallet_id = pallet.id
+                      INNER JOIN location ON pallet.location_id = location.id
+                        INNER JOIN warehouse ON location.warehouse_id = warehouse.id
+              
+              WHERE product.id = $1        
+            `
 
-              pool.query(return_product_object_string, [ product_id ], 
-                (error, results) => {
+            pool.query(return_product_object_string, [product_id], 
+            (product_error, product_results) => {
+              if (product_error) {
+                  return res.status(422).send({ product_error: error.message })
+              } else {
+                  return res.send(product_results.rows[0])
 
-                  if (error) {
-                      res.status(422).send({ error: error.message })
-                  } else {
-                      res.send(results.rows[0])
-                  }
-                })
-          }
-        })
-     }
-  })
-})
+              } // closes the else
+            }) // third pool query
+          } // closes the else
+        }) // second pool query
+     } // closes the else
+  }) // first pool query
+}) // app
 
 
 // CREATE WAREHOUSE 
