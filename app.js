@@ -6,7 +6,8 @@ require('dotenv').config()
 const Pool = require('pg').Pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized : false }
+  ssl: { rejectUnauthorized : false },
+  ssl: false
 })
 
 const app = express()
@@ -413,8 +414,8 @@ app.put('/warehouse/:warehouse_id/locations', (req, res) => {
 
 app.put('/pallet/:pallet_id/location/:new_location', (req, res) => {
 
-  let pallet_id = req.params.pallet_id
-  let new_location_coords = req.params.new_location
+  const pallet_id = req.params.pallet_id
+  const new_location_coords = req.params.new_location
 
   let query_string = 
   `
@@ -429,17 +430,17 @@ app.put('/pallet/:pallet_id/location/:new_location', (req, res) => {
                         INNER JOIN pallet ON pallet.id = location.id	
               WHERE pallet.id = $1
           ) AND location.coord = $2
-      ) WHERE pallet.id = $1
+      ) WHERE pallet.id = $1;
   `
-  pool.query(query_string, [ pallet_id, new_location_coords ], 
+  pool.query(query_string, [pallet_id, new_location_coords], 
     (error, _) => {
 
-      if (error) {
-          res.status(422).send({ error: error.message })
-      } else {
-          res.send(`pallet #${pallet_id} moved to location ${new_location_coords}`)
-      }
-    })
+    if (error) {
+        res.status(422).send({ error: error.message })
+    } else {
+        res.send(`pallet #${pallet_id} moved to location ${new_location_coords}`)
+    }
+  })
 })
 
 ////////////////////////////  CREATE PRODUCT, LOT, WAREHOUSE  ///////////////////////////////////////////
@@ -540,6 +541,7 @@ app.post('/pallet/:pallet_id/products', (req, res) => {
                 res.status(422).send({ error: error.message })
             } else {
                 res.send(results.rows[0])
+                
             }
           })
       }
@@ -597,7 +599,7 @@ app.post('/warehouse/:warehouse_id/location/:location_coords/products', (req, re
 
   pool.query(create_pallet, [location_coords, warehouse_id], (error, _) => {
     if (error) {
-        res.status(422).send({ error: error.message })
+        return res.status(422).send({ error: error.message })
     } else {
 
       pool.query(query_string, [
@@ -607,59 +609,54 @@ app.post('/warehouse/:warehouse_id/location/:location_coords/products', (req, re
         ], (error, results) => {
           if (error) {
 
-            // if there is an error with creating the product, then delete the empty pallet 
-            pool.query(empty_pallets_string, (error, _) => {
-              if (error) {
-                  res.status(422).send({ error: error.message })
+            pool.query(empty_pallets_string, (empty_error, _) => {
+              if (empty_error) {
+                  return res.status(422).send({ error: empty_error.message })
               } else {
-                  res.send('empty pallets deleted')
+                return res.send("Error creating product. Empty pallet removed.") 
               }
             })
 
-            if (error.message.includes('duplicate key value violates unique constraint "product_pallet_id_lot_id_bag_size_key"')) {
-              res.send("Cannot add another product of the exact same lot code AND bag size, on the same pallet. Please simply adjust the volume of the product already on this pallet.")
-            } else {
-              res.status(422).send({ error: error.message }) }
           } else {
 
-              // if pallet plus product successfully added, return the new product object 
+            // if pallet plus product successfully added, return the new product object 
 
-              let product_id = results.rows[0].id
-              let return_product_object_string = 
-              `SELECT
-              product.id AS product_id,
-              coord AS coordinates, 
-              pallet.id AS pallet_id, 
-              lot_code, 
-              seed.type AS seed_type, 
-              seed.variety AS seed_variety, 
-              product.bag_size, 
-              product.number_of_bags	
-            
-                FROM product
-                  INNER JOIN lot ON product.lot_id = lot.id
-                    INNER JOIN seed ON lot.seed_id = seed.id
-                      INNER JOIN pallet ON product.pallet_id = pallet.id
-                        INNER JOIN location ON pallet.location_id = location.id
-                          INNER JOIN warehouse ON location.warehouse_id = warehouse.id
-                
-                WHERE product.id = $1        
-              `
+            let product_id = results.rows[0].id
+            let return_product_object_string = 
+            `SELECT
+            product.id AS product_id,
+            coord AS coordinates, 
+            pallet.id AS pallet_id, 
+            lot_code, 
+            seed.type AS seed_type, 
+            seed.variety AS seed_variety, 
+            product.bag_size, 
+            product.number_of_bags	
+          
+              FROM product
+                INNER JOIN lot ON product.lot_id = lot.id
+                  INNER JOIN seed ON lot.seed_id = seed.id
+                    INNER JOIN pallet ON product.pallet_id = pallet.id
+                      INNER JOIN location ON pallet.location_id = location.id
+                        INNER JOIN warehouse ON location.warehouse_id = warehouse.id
+              
+              WHERE product.id = $1        
+            `
 
-              pool.query(return_product_object_string, [ product_id ], 
-                (error, results) => {
+            pool.query(return_product_object_string, [product_id], 
+            (product_error, product_results) => {
+              if (product_error) {
+                  return res.status(422).send({ error: product_error.message })
+              } else {
+                  return res.send(product_results.rows[0])
 
-                  if (error) {
-                      res.status(422).send({ error: error.message })
-                  } else {
-                      res.send(results.rows[0])
-                  }
-                })
-          }
-        })
-     }
-  })
-})
+              } // closes the else
+            }) // third pool query
+          } // closes the else
+        }) // second pool query
+     } // closes the else
+  }) // first pool query
+}) // app
 
 
 // CREATE WAREHOUSE 
@@ -669,7 +666,52 @@ app.post('/warehouse', (req, res) => {
   let query_string = 
   `INSERT INTO warehouse (name, rows, columns)
     VALUES ($1, $2, $3)
-      RETURNING *
+      RETURNING *;
+  `
+
+  // will see if can create in one query in separate branch
+  // not currently implemented, preferenced by simple_insert query
+  let create_new_locations =
+  `
+  DO $$
+
+    DECLARE 
+      myRows INTEGER := -1;
+      myColumns INTEGER := -1;
+      
+    BEGIN
+
+      FOR rows IN 1..$1 LOOP
+        myRows := myRows + 1;
+        myColumns := -1;
+
+          FOR columns IN 1..$2 LOOP
+            myColumns := myColumns + 1;
+        
+            INSERT INTO location(warehouse_id, location_type_id, coord)
+            VALUES (
+              $3, 
+              3, 
+                CONCAT(TO_CHAR(myColumns, 'fm00'),'_',TO_CHAR(myRows, 'fm00'))
+              );
+
+          END LOOP;
+
+      END LOOP;
+    END;
+    $$;
+  `
+
+  let simple_insert = 
+  `
+  INSERT INTO location(warehouse_id, location_type_id, coord)
+    VALUES ( $1, 3, $2 );
+  `
+
+  let delete_warehouse =
+  `
+  DELETE FROM warehouse
+    WHERE id = $1;
   `
 
   pool.query(query_string, [
@@ -680,14 +722,38 @@ app.post('/warehouse', (req, res) => {
     
     if (error) {
       if (error.message.includes("duplicate key value violates unique constraint")) {
-        res.send("This warehouse name already exists. Please choose another name")
+        return res.send("This warehouse name already exists. Please choose another name")
       } else {
-        res.status(422).send({ error: error.message }) }
+        return res.status(422).send({ error: error.message }) }
     } else {
-        res.send(results.rows[0])
-    }
-  })
-})
+
+      const new_warehouse = results.rows[0]
+      const warehouse_id = results.rows[0].id
+
+      for (let y = 0;  y < req.body.columns; y++) {     
+        for (let x = 0; x < req.body.rows; x ++) {
+
+          let coord = String(x).padStart(2, '0') + '_' + String(y).padStart(2,'0')
+                
+          pool.query(simple_insert, [warehouse_id, coord], (location_error, _) => {
+            if (location_error) {
+
+              pool.query(delete_warehouse, [warehouse_id], (del_warehouse_error, _) => {
+                if (del_warehouse_error) {
+                  console.log(location_error)
+                  return res.status(422).send( "Warehouse created, error with location creation, warehouse NOT deleted")
+                } else {
+                  return res.send("Warehouse created, error with location creation, warehouse deleted")
+                }
+              })   
+            }
+          })  // second pool.query
+        } 
+      } 
+      return res.send(new_warehouse)
+    } // else 
+  }) // first pool.query
+}) // app.post
 
 module.exports = app
 
