@@ -6,7 +6,8 @@ require('dotenv').config()
 const Pool = require('pg').Pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized : false }
+  ssl: { rejectUnauthorized : false },
+  ssl: false
 })
 
 const app = express()
@@ -645,7 +646,7 @@ app.post('/warehouse/:warehouse_id/location/:location_coords/products', (req, re
             pool.query(return_product_object_string, [product_id], 
             (product_error, product_results) => {
               if (product_error) {
-                  return res.status(422).send({ product_error: error.message })
+                  return res.status(422).send({ error: product_error.message })
               } else {
                   return res.send(product_results.rows[0])
 
@@ -665,7 +666,52 @@ app.post('/warehouse', (req, res) => {
   let query_string = 
   `INSERT INTO warehouse (name, rows, columns)
     VALUES ($1, $2, $3)
-      RETURNING *
+      RETURNING *;
+  `
+
+  // will see if can create in one query in separate branch
+  // not currently implemented, preferenced by simple_insert query
+  let create_new_locations =
+  `
+  DO $$
+
+    DECLARE 
+      myRows INTEGER := -1;
+      myColumns INTEGER := -1;
+      
+    BEGIN
+
+      FOR rows IN 1..$1 LOOP
+        myRows := myRows + 1;
+        myColumns := -1;
+
+          FOR columns IN 1..$2 LOOP
+            myColumns := myColumns + 1;
+        
+            INSERT INTO location(warehouse_id, location_type_id, coord)
+            VALUES (
+              $3, 
+              3, 
+                CONCAT(TO_CHAR(myColumns, 'fm00'),'_',TO_CHAR(myRows, 'fm00'))
+              );
+
+          END LOOP;
+
+      END LOOP;
+    END;
+    $$;
+  `
+
+  let simple_insert = 
+  `
+  INSERT INTO location(warehouse_id, location_type_id, coord)
+    VALUES ( $1, 3, $2 );
+  `
+
+  let delete_warehouse =
+  `
+  DELETE FROM warehouse
+    WHERE id = $1;
   `
 
   pool.query(query_string, [
@@ -676,14 +722,38 @@ app.post('/warehouse', (req, res) => {
     
     if (error) {
       if (error.message.includes("duplicate key value violates unique constraint")) {
-        res.send("This warehouse name already exists. Please choose another name")
+        return res.send("This warehouse name already exists. Please choose another name")
       } else {
-        res.status(422).send({ error: error.message }) }
+        return res.status(422).send({ error: error.message }) }
     } else {
-        res.send(results.rows[0])
-    }
-  })
-})
+
+      const new_warehouse = results.rows[0]
+      const warehouse_id = results.rows[0].id
+
+      for (let y = 0;  y < req.body.columns; y++) {     
+        for (let x = 0; x < req.body.rows; x ++) {
+
+          let coord = String(x).padStart(2, '0') + '_' + String(y).padStart(2,'0')
+                
+          pool.query(simple_insert, [warehouse_id, coord], (location_error, _) => {
+            if (location_error) {
+
+              pool.query(delete_warehouse, [warehouse_id], (del_warehouse_error, _) => {
+                if (del_warehouse_error) {
+                  console.log(location_error)
+                  return res.status(422).send( "Warehouse created, error with location creation, warehouse NOT deleted")
+                } else {
+                  return res.send("Warehouse created, error with location creation, warehouse deleted")
+                }
+              })   
+            }
+          })  // second pool.query
+        } 
+      } 
+      return res.send(new_warehouse)
+    } // else 
+  }) // first pool.query
+}) // app.post
 
 module.exports = app
 
