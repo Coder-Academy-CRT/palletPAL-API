@@ -729,8 +729,8 @@ app.post('/warehouse', (req, res) => {
       const new_warehouse = results.rows[0]
       const warehouse_id = results.rows[0].id
 
-      for (let y = 0;  y < req.body.columns; y++) {     
-        for (let x = 0; x < req.body.rows; x ++) {
+      for (let y = 0;  y < req.body.rows; y++) {     
+        for (let x = 0; x < req.body.columns; x ++) {
 
           let coord = String(x).padStart(2, '0') + '_' + String(y).padStart(2,'0')
                 
