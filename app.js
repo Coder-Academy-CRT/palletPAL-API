@@ -52,8 +52,6 @@ app.get('/warehouses', (_, res) => {
   pool.query( query_string, (error, results) => {
     if (error) {
       res.status(422).send({ error: error.message })
-    } else if (results.rows.length == 0) {
-        res.status(404).send({ error: 'No entries' })
     } else {
         res.send(results.rows)
     }
@@ -81,8 +79,6 @@ app.get('/warehouse/:warehouse_id/locations', (req, res) => {
   pool.query( query_string, [warehouse_id], (error, results) => {
     if (error) {
       res.status(422).send({ error: error.message })
-    } else if (results.rows.length == 0) {
-        res.status(404).send({ error: 'No entries' })
     } else {
         res.send(results.rows)
     }
@@ -108,8 +104,6 @@ app.get('/warehouse/:warehouse_id/lots', (req, res) => {
   pool.query( query_string, [warehouse_id], (error, results) => {
     if (error) {
       res.status(422).send({ error: error.message })
-    } else if (results.rows.length == 0) {
-        res.status(404).send({ error: 'No entries' })
     } else {
         res.send(results.rows)
     }
@@ -145,8 +139,6 @@ app.get('/warehouse/:warehouse_id/products', (req, res) => {
   pool.query( query_string, [warehouse_id], (error, results) => {
     if (error) {
       res.status(422).send({ error: error.message })
-    } else if (results.rows.length == 0) {
-        res.status(404).send({ error: 'No entries' })
     } else {
         res.send(results.rows)
     }
