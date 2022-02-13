@@ -418,7 +418,7 @@ app.put('/pallet/:pallet_id/location/:new_location', (req, res) => {
             SELECT warehouse.id
                   FROM warehouse
                 INNER JOIN location ON warehouse.id = location.warehouse_id
-                        INNER JOIN pallet ON pallet.id = location.id	
+                        INNER JOIN pallet ON location.id = pallet.location.id	
               WHERE pallet.id = $1
           ) AND location.coord = $2
       ) WHERE pallet.id = $1;
